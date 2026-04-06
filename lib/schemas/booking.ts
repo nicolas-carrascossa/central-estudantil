@@ -9,6 +9,7 @@ const cpfSchema = z
 const externalGuestSchema = z.object({
   name: z.string().min(1, "Nome obrigatório"),
   cpf: cpfSchema,
+  email: z.string().email("E-mail inválido"),
 });
 
 export const createBookingSchema = z.object({

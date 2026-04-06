@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { createBookingSchema, type CreateBookingInput } from "@/lib/schemas/booking";
+import { sendNewBookingRequestEmail, sendBookingStatusUpdateEmail } from "@/lib/email";
+import { env } from "@/lib/env";
 
 export async function getBookingsByMonth(year: number, month: number) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -44,7 +46,7 @@ export async function createBooking(input: CreateBookingInput) {
   const data = {
     ...input,
     externalGuests: input.externalGuests.filter(
-      (g) => g.name?.trim() && g.cpf?.replace(/\D/g, "").length === 11
+      (g) => g.name?.trim() && g.cpf?.replace(/\D/g, "").length === 11 && g.email?.trim()
     ),
   };
 
@@ -69,7 +71,7 @@ export async function createBooking(input: CreateBookingInput) {
 
   try {
     const { externalGuests, ...rest } = parsed.data;
-    await prisma.booking.create({
+    const booking = await prisma.booking.create({
       data: {
         ...rest,
         externalGuests:
@@ -79,6 +81,23 @@ export async function createBooking(input: CreateBookingInput) {
     });
     revalidatePath("/calendar-page");
     revalidatePath("/dashboard");
+
+    try {
+      await sendNewBookingRequestEmail({
+        to: env.SECRETARIA_EMAIL,
+        title: booking.title,
+        date: booking.date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        spaceFirstOption: booking.spaceFirstOption,
+        spaceSecondOption: booking.spaceSecondOption,
+        clubEmail: booking.clubEmail,
+        representativeEmail: booking.representativeEmail,
+      });
+    } catch (emailErr) {
+      console.error("Erro ao enviar e-mail de nova solicitação:", emailErr);
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Erro ao criar agendamento:", err);
@@ -96,7 +115,7 @@ export async function updateBookingStatus(
   }
 
   try {
-    await prisma.booking.update({
+    const updated = await prisma.booking.update({
       where: {
         id,
         createdById: session.user.id,
@@ -105,6 +124,19 @@ export async function updateBookingStatus(
     });
     revalidatePath("/calendar-page");
     revalidatePath("/dashboard");
+
+    if (status === "APPROVED" || status === "CANCELLED") {
+      try {
+        await sendBookingStatusUpdateEmail({
+          to: updated.clubEmail,
+          title: updated.title,
+          status,
+        });
+      } catch (emailErr) {
+        console.error("Erro ao enviar e-mail de atualização de status:", emailErr);
+      }
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Erro ao atualizar agendamento:", err);

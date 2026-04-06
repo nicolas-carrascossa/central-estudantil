@@ -141,13 +141,13 @@ export function Calendar() {
   const addExternalGuest = () => {
     setForm((prev) => ({
       ...prev,
-      externalGuests: [...prev.externalGuests, { name: "", cpf: "" }],
+      externalGuests: [...prev.externalGuests, { name: "", cpf: "", email: "" }],
     }));
   };
 
   const updateExternalGuest = (
     index: number,
-    field: "name" | "cpf",
+    field: "name" | "cpf" | "email",
     value: string,
   ) => {
     setForm((prev) => ({
@@ -644,6 +644,15 @@ export function Calendar() {
                             updateExternalGuest(index, "cpf", e.target.value)
                           }
                           maxLength={11}
+                        />
+                        <Input
+                          placeholder="E-mail"
+                          type="email"
+                          className="flex-1 bg-background"
+                          value={guest.email ?? ""}
+                          onChange={(e) =>
+                            updateExternalGuest(index, "email", e.target.value)
+                          }
                         />
                       </div>
                       <Button
