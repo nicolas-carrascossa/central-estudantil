@@ -38,7 +38,8 @@ export async function adminGetBookingsByMonth(year: number, month: number) {
 
 export async function adminUpdateBookingStatus(
   id: string,
-  status: "PENDING" | "APPROVED" | "CANCELLED"
+  status: "PENDING" | "APPROVED" | "CANCELLED",
+  approvedSpace?: string
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || !isAdmin(session)) {
@@ -46,9 +47,37 @@ export async function adminUpdateBookingStatus(
   }
 
   try {
+    if (status === "APPROVED") {
+      if (!approvedSpace) {
+        return {
+          success: false,
+          error: "Espaço aprovado é obrigatório ao aprovar",
+        };
+      }
+      const booking = await prisma.booking.findUnique({
+        where: { id },
+        select: { spaceFirstOption: true, spaceSecondOption: true },
+      });
+      if (!booking) {
+        return { success: false, error: "Agendamento não encontrado" };
+      }
+      if (
+        approvedSpace !== booking.spaceFirstOption &&
+        approvedSpace !== booking.spaceSecondOption
+      ) {
+        return {
+          success: false,
+          error: "Espaço aprovado deve ser uma das opções solicitadas",
+        };
+      }
+    }
+
     const updated = await prisma.booking.update({
       where: { id },
-      data: { status },
+      data: {
+        status,
+        approvedSpace: status === "APPROVED" ? approvedSpace : null,
+      },
     });
     revalidatePath("/z_admin");
 
