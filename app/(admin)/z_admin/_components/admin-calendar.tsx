@@ -19,23 +19,10 @@ import {
   getYear,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Trash2, User } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { BookingDetailsModal } from "@/components/booking-details-modal";
 import { cn } from "@/lib/utils";
 import {
   adminGetBookingsByMonth,
@@ -43,15 +30,6 @@ import {
   adminDeleteBooking,
 } from "@/server/booking-admin";
 import { toast } from "sonner";
-
-const SPACE_OPTIONS: Record<string, string> = {
-  auditorio: "Auditório",
-  "sala-reuniao-1": "Sala de Reunião 1",
-  "sala-reuniao-2": "Sala de Reunião 2",
-  "sala-coworking": "Sala Co-working",
-  laboratorio: "Laboratório",
-  "sala-eventos": "Sala de Eventos",
-};
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -66,8 +44,6 @@ export function AdminCalendar() {
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(
     null
   );
-  const [statusChanging, setStatusChanging] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const fetchBookings = useCallback(async (date: Date) => {
     setIsLoading(true);
@@ -113,27 +89,42 @@ export function AdminCalendar() {
   };
 
   const handleStatusChange = async (
-    id: string,
-    status: "PENDING" | "APPROVED" | "CANCELLED"
+    status: "PENDING" | "APPROVED" | "CANCELLED",
+    approvedSpace?: string
   ) => {
-    setStatusChanging(true);
-    const result = await adminUpdateBookingStatus(id, status);
+    if (!selectedBooking) return;
+    const result = await adminUpdateBookingStatus(
+      selectedBooking.id,
+      status,
+      approvedSpace
+    );
     if (result.success) {
-      toast.success("Status atualizado");
-      setSelectedBooking((prev: AdminBooking | null) =>
-        prev ? { ...prev, status } : null
+      const messages = {
+        PENDING: "Voltado para pendente",
+        APPROVED: "Agendamento aprovado",
+        CANCELLED: "Agendamento cancelado",
+      } as const;
+      toast.success(messages[status]);
+      setSelectedBooking((prev) =>
+        prev
+          ? {
+              ...prev,
+              status,
+              approvedSpace:
+                status === "APPROVED" ? (approvedSpace ?? null) : null,
+            }
+          : null
       );
       void fetchBookings(currentMonth);
     } else {
       toast.error(result.error ?? "Erro ao atualizar");
     }
-    setStatusChanging(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!selectedBooking) return;
     if (!confirm("Excluir este agendamento permanentemente?")) return;
-    setDeleting(true);
-    const result = await adminDeleteBooking(id);
+    const result = await adminDeleteBooking(selectedBooking.id);
     if (result.success) {
       toast.success("Agendamento excluído");
       setDetailModalOpen(false);
@@ -142,7 +133,6 @@ export function AdminCalendar() {
     } else {
       toast.error(result.error ?? "Erro ao excluir");
     }
-    setDeleting(false);
   };
 
   const monthStart = startOfMonth(currentMonth);
@@ -370,135 +360,14 @@ export function AdminCalendar() {
         </div>
       </div>
 
-      {/* Modal de detalhes do agendamento */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[520px]">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg">
-              Detalhes do agendamento
-              {selectedBooking && (
-                <span className="mt-1 block text-sm font-normal text-muted-foreground">
-                  {format(new Date(selectedBooking.date), "EEEE, dd 'de' MMMM", {
-                    locale: ptBR,
-                  })}
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedBooking && (
-            <div className="space-y-6">
-              {/* Evento */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Evento</h3>
-                <p className="font-medium">{selectedBooking.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedBooking.startTime} – {selectedBooking.endTime}
-                </p>
-              </section>
-
-              <Separator />
-
-              {/* Espaço */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Espaço</h3>
-                <p className="text-sm">
-                  1ª {SPACE_OPTIONS[selectedBooking.spaceFirstOption] ?? selectedBooking.spaceFirstOption} · 2ª{" "}
-                  {SPACE_OPTIONS[selectedBooking.spaceSecondOption] ?? selectedBooking.spaceSecondOption}
-                </p>
-              </section>
-
-              <Separator />
-
-              {/* Solicitante */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <User className="size-4" />
-                  Solicitante
-                </h3>
-                <p className="text-sm font-medium">{selectedBooking.createdBy.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedBooking.createdBy.email}
-                </p>
-              </section>
-
-              <Separator />
-
-              {/* Contato */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Contato</h3>
-                <p className="text-sm">
-                  Clube: {selectedBooking.clubEmail}
-                </p>
-                <p className="text-sm">
-                  Representante: {selectedBooking.representativeEmail}
-                </p>
-              </section>
-
-              {Array.isArray(selectedBooking.externalGuests) &&
-                (selectedBooking.externalGuests as { name: string; cpf: string }[]).length > 0 && (
-                  <>
-                    <Separator />
-                    <section className="space-y-2">
-                      <h3 className="text-sm font-semibold">Convidados externos</h3>
-                      <ul className="space-y-1 text-sm">
-                        {(selectedBooking.externalGuests as { name: string; cpf: string }[]).map(
-                          (g, i) => (
-                            <li key={i}>
-                              {g.name} · CPF {g.cpf}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </section>
-                  </>
-                )}
-
-              <Separator />
-
-              {/* Ações do admin */}
-              <section className="space-y-4">
-                <h3 className="text-sm font-semibold">Ações</h3>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Status:</span>
-                    <Select
-                      value={selectedBooking.status}
-                      onValueChange={(val) =>
-                        handleStatusChange(
-                          selectedBooking.id,
-                          val as "PENDING" | "APPROVED" | "CANCELLED"
-                        )
-                      }
-                      disabled={statusChanging}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">Pendente</SelectItem>
-                        <SelectItem value="APPROVED">Aprovado</SelectItem>
-                        <SelectItem value="CANCELLED">Cancelado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(selectedBooking.id)}
-                    disabled={deleting}
-                    className="gap-2"
-                  >
-                    <Trash2 className="size-4" />
-                    Excluir
-                  </Button>
-                </div>
-              </section>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <BookingDetailsModal
+        booking={selectedBooking}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        mode="admin"
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

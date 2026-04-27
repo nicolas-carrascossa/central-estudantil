@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -46,25 +47,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { BookingDetailsModal } from "@/components/booking-details-modal";
 import { cn } from "@/lib/utils";
 import type { CreateBookingInput } from "@/lib/schemas/booking";
 import { createBooking, getBookingsByMonth } from "@/server/booking";
+import { SPACE_OPTIONS } from "@/lib/constants/spaces";
 import { toast } from "sonner";
-
-const SPACE_OPTIONS = [
-  { value: "auditorio", label: "Auditório" },
-  { value: "m01", label: "M01" },
-  { value: "sala-reuniao-2", label: "Sala de Reunião 2" },
-  { value: "sala-coworking", label: "Sala Co-working" },
-  { value: "laboratorio", label: "Laboratório" },
-  { value: "sala-eventos", label: "Sala de Eventos" },
-];
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 type BookingFromDb = Awaited<ReturnType<typeof getBookingsByMonth>>[number];
 
-export function Calendar() {
+export function Calendar({ currentUserId }: { currentUserId: string }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [bookings, setBookings] = useState<BookingFromDb[]>([]);
@@ -73,9 +67,14 @@ export function Calendar() {
   const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingFromDb | null>(
+    null
+  );
 
   const [form, setForm] = useState<CreateBookingInput>({
     title: "",
+    description: "",
     date: new Date(),
     startTime: "09:00",
     endTime: "10:00",
@@ -121,10 +120,17 @@ export function Calendar() {
     setCurrentWeek(today);
   };
 
+  const openDetailModal = (booking: BookingFromDb, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedBooking(booking);
+    setDetailModalOpen(true);
+  };
+
   const openModal = (date: Date) => {
     setSelectedDate(date);
     setForm({
       title: "",
+      description: "",
       date,
       startTime: "09:00",
       endTime: "10:00",
@@ -141,13 +147,13 @@ export function Calendar() {
   const addExternalGuest = () => {
     setForm((prev) => ({
       ...prev,
-      externalGuests: [...prev.externalGuests, { name: "", cpf: "" }],
+      externalGuests: [...prev.externalGuests, { name: "", cpf: "", email: "" }],
     }));
   };
 
   const updateExternalGuest = (
     index: number,
-    field: "name" | "cpf",
+    field: "name" | "cpf" | "email",
     value: string,
   ) => {
     setForm((prev) => ({
@@ -178,6 +184,7 @@ export function Calendar() {
     const result = await createBooking({
       ...form,
       date: selectedDate,
+      description: form.description?.trim() || null,
     });
 
     if (result.success) {
@@ -255,10 +262,12 @@ export function Calendar() {
         </div>
         <div className="mt-2 flex flex-1 flex-col gap-1 overflow-y-auto">
           {dayBookings.map((booking) => (
-            <div
+            <button
               key={booking.id}
+              type="button"
+              onClick={(e) => openDetailModal(booking, e)}
               className={cn(
-                "truncate rounded px-1.5 py-1 text-[10px] font-medium",
+                "truncate rounded px-1.5 py-1 text-left text-[10px] font-medium transition-opacity hover:opacity-90",
                 booking.status === "APPROVED"
                   ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
                   : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200",
@@ -267,7 +276,7 @@ export function Calendar() {
             >
               <span className="font-bold opacity-75">{booking.startTime} </span>
               <span className="truncate">{booking.title}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -397,10 +406,12 @@ export function Calendar() {
                 {bookings
                   .filter((b) => isSameDay(new Date(b.date), day))
                   .map((booking) => (
-                    <div
+                    <button
                       key={booking.id}
+                      type="button"
+                      onClick={(e) => openDetailModal(booking, e)}
                       className={cn(
-                        "truncate rounded px-2 py-1 text-xs font-medium",
+                        "truncate rounded px-2 py-1 text-left text-xs font-medium transition-opacity hover:opacity-90",
                         booking.status === "APPROVED"
                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
                           : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200",
@@ -408,7 +419,7 @@ export function Calendar() {
                       title={`${booking.startTime} - ${booking.title} (${booking.createdBy.name})`}
                     >
                       {booking.startTime} {booking.title}
-                    </div>
+                    </button>
                   ))}
               </div>
             </div>
@@ -500,6 +511,22 @@ export function Calendar() {
                       required
                     />
                   </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Descrição (opcional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Descreva o evento, agenda, observações..."
+                    className="min-h-[80px] bg-muted/60 border-border"
+                    value={form.description ?? ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    maxLength={2000}
+                  />
                 </div>
               </div>
             </section>
@@ -645,6 +672,15 @@ export function Calendar() {
                           }
                           maxLength={11}
                         />
+                        <Input
+                          placeholder="E-mail"
+                          type="email"
+                          className="flex-1 bg-background"
+                          value={guest.email ?? ""}
+                          onChange={(e) =>
+                            updateExternalGuest(index, "email", e.target.value)
+                          }
+                        />
                       </div>
                       <Button
                         type="button"
@@ -723,6 +759,15 @@ export function Calendar() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <BookingDetailsModal
+        booking={selectedBooking}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        mode={
+          selectedBooking?.createdById === currentUserId ? "owner" : "public"
+        }
+      />
     </div>
   );
 }
