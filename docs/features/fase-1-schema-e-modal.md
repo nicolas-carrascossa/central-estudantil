@@ -2,6 +2,8 @@
 
 Estamos implementando melhorias no ce-platform. Já mapeamos lacunas e decidimos um plano em fases. Esta sessão cobre **Fase 1 (schema/migrations)** e **Fase 2 (modal de detalhes pro clube)**. Não mexe em email nem Google Calendar ainda.
 
+> **PRÉ-REQUISITOS:** passos 3 (fix dos bugs do email) e 4 (atualização do `CLAUDE.md`) da preparação desta sessão devem estar feitos antes de iniciar a Fase 1. Procurar pelos commits `fix: email - cobre admin actions e torna email de convidado opcional` e `docs: atualiza CLAUDE.md sobre estado de email` no histórico da branch base. Sem eles, a instrução 1.3 sobre `externalGuestSchema` não bate com o estado real do código.
+
 ## Contexto importante (já confirmado com o usuário)
 
 - Usuário comum em `getBookingsByMonth` JÁ vê todos APPROVED de outros + todos os próprios. Filtro está correto, problema era só UI.
@@ -49,7 +51,7 @@ Rodar `npx prisma migrate dev --name add_booking_details_and_approved_space` e `
 Em `lib/schemas/booking.ts`:
 
 - Adicionar `description: z.string().max(2000).optional()` no schema de criação
-- Atualizar `externalGuestSchema` pra incluir `email: z.string().email("Email inválido").optional()` (opcional pra não quebrar dados antigos no banco)
+- Confirmar que `externalGuestSchema` já tem `email: z.string().email(...).optional()` — corrigido no passo 3b da preparação desta sessão. Se não estiver `.optional()`, ajustar antes de seguir.
 
 ### 1.4 Atualizar form de criação de booking
 
@@ -121,7 +123,7 @@ Verificar como o calendar.tsx atualmente acessa info de sessão. Se não acessa,
 
 ## Coisas que NÃO fazer nesta sessão
 
-- Não criar `lib/email.ts` nem instalar Resend (Fase 3)
+- Não mexer em email/Resend — já está implementado. Polimentos (verificar domínio próprio no Resend, migrar `SECRETARIA_EMAIL` pra lista global) ficam pra Fase 3.
 - Não criar modelo `GlobalGuestEmail` (Fase 4)
 - Não instalar `googleapis` (Fase 5)
 - Não implementar detecção de conflito (Fase 6)
