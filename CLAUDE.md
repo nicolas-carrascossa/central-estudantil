@@ -168,6 +168,7 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 9. **Sem testes**.
 10. README ainda é o boilerplate do `create-next-app` — substituir.
 11. Mobile não tem visão de mês.
+12. **LGPD — payload vazado client-side**: `getBookingsByMonth` ([server/booking.ts](server/booking.ts)) retorna o booking completo (incluindo `externalGuests` com CPF, `clubEmail`, `representativeEmail`, `createdBy.name/email`) mesmo pra bookings que o usuário **não é dono**. O modal modo `"public"` ([components/booking-details-modal.tsx](components/booking-details-modal.tsx)) oculta esses campos na UI, mas o dado já está no payload do browser (acessível via React DevTools / Network). **Solução:** filtrar campos sensíveis no server quando `booking.createdById !== session.user.id` e `status === "APPROVED"` — retornar só title, description, date, startTime/endTime, approvedSpace (e os 2 spaceOption se ainda PENDING, embora público nem deveria ver PENDING).
 
 ---
 
