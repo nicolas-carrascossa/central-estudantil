@@ -184,6 +184,7 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
     const result = await createBooking({
       ...form,
       date: selectedDate,
+      description: form.description?.trim() || null,
     });
 
     if (result.success) {
