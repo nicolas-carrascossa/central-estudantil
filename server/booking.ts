@@ -46,7 +46,7 @@ export async function createBooking(input: CreateBookingInput) {
   const data = {
     ...input,
     externalGuests: input.externalGuests.filter(
-      (g) => g.name?.trim() && g.cpf?.replace(/\D/g, "").length === 11 && g.email?.trim()
+      (g) => g.name?.trim() && g.cpf?.replace(/\D/g, "").length === 11
     ),
   };
 

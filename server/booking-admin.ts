@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { sendBookingStatusUpdateEmail } from "@/lib/email";
 
 function isAdmin(session: { user: { role?: string | null } } | null): boolean {
   return session?.user?.role === "admin";
@@ -45,11 +46,24 @@ export async function adminUpdateBookingStatus(
   }
 
   try {
-    await prisma.booking.update({
+    const updated = await prisma.booking.update({
       where: { id },
       data: { status },
     });
     revalidatePath("/z_admin");
+
+    if (status === "APPROVED" || status === "CANCELLED") {
+      try {
+        await sendBookingStatusUpdateEmail({
+          to: updated.clubEmail,
+          title: updated.title,
+          status,
+        });
+      } catch (emailErr) {
+        console.error("Erro ao enviar e-mail de atualização de status:", emailErr);
+      }
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Erro ao atualizar agendamento:", err);

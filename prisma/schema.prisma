@@ -84,7 +84,7 @@ model Booking {
   endTime             String
   spaceFirstOption    String
   spaceSecondOption   String
-  externalGuests      Json? // [{ name: string, cpf: string, email: string }]
+  externalGuests      Json? // [{ name: string, cpf: string, email?: string }]
   clubEmail           String
   representativeEmail String
   status              BookingStatus @default(PENDING)
