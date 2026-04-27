@@ -19,30 +19,16 @@ import {
   getYear,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Trash2, User } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { BookingDetailsModal } from "@/components/booking-details-modal";
 import { cn } from "@/lib/utils";
 import {
   adminGetBookingsByMonth,
   adminUpdateBookingStatus,
   adminDeleteBooking,
 } from "@/server/booking-admin";
-import { getSpaceLabel } from "@/lib/constants/spaces";
 import { toast } from "sonner";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -58,9 +44,6 @@ export function AdminCalendar() {
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(
     null
   );
-  const [statusChanging, setStatusChanging] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [approvedSpace, setApprovedSpace] = useState<string>("");
 
   const fetchBookings = useCallback(async (date: Date) => {
     setIsLoading(true);
@@ -102,20 +85,18 @@ export function AdminCalendar() {
   const openDetailModal = (booking: AdminBooking, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setSelectedBooking(booking);
-    setApprovedSpace(booking.approvedSpace ?? booking.spaceFirstOption);
     setDetailModalOpen(true);
   };
 
   const handleStatusChange = async (
     status: "PENDING" | "APPROVED" | "CANCELLED",
-    options?: { approvedSpace?: string }
+    approvedSpace?: string
   ) => {
     if (!selectedBooking) return;
-    setStatusChanging(true);
     const result = await adminUpdateBookingStatus(
       selectedBooking.id,
       status,
-      options?.approvedSpace
+      approvedSpace
     );
     if (result.success) {
       const messages = {
@@ -130,7 +111,7 @@ export function AdminCalendar() {
               ...prev,
               status,
               approvedSpace:
-                status === "APPROVED" ? (options?.approvedSpace ?? null) : null,
+                status === "APPROVED" ? (approvedSpace ?? null) : null,
             }
           : null
       );
@@ -138,13 +119,12 @@ export function AdminCalendar() {
     } else {
       toast.error(result.error ?? "Erro ao atualizar");
     }
-    setStatusChanging(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!selectedBooking) return;
     if (!confirm("Excluir este agendamento permanentemente?")) return;
-    setDeleting(true);
-    const result = await adminDeleteBooking(id);
+    const result = await adminDeleteBooking(selectedBooking.id);
     if (result.success) {
       toast.success("Agendamento excluído");
       setDetailModalOpen(false);
@@ -153,7 +133,6 @@ export function AdminCalendar() {
     } else {
       toast.error(result.error ?? "Erro ao excluir");
     }
-    setDeleting(false);
   };
 
   const monthStart = startOfMonth(currentMonth);
@@ -381,222 +360,14 @@ export function AdminCalendar() {
         </div>
       </div>
 
-      {/* Modal de detalhes do agendamento */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[520px]">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg">
-              Detalhes do agendamento
-              {selectedBooking && (
-                <span className="mt-1 block text-sm font-normal text-muted-foreground">
-                  {format(new Date(selectedBooking.date), "EEEE, dd 'de' MMMM", {
-                    locale: ptBR,
-                  })}
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedBooking && (
-            <div className="space-y-6">
-              {/* Evento */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Evento</h3>
-                <p className="font-medium">{selectedBooking.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedBooking.startTime} – {selectedBooking.endTime}
-                </p>
-              </section>
-
-              <Separator />
-
-              {/* Espaço */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Espaço</h3>
-                <p className="text-sm">
-                  1ª {getSpaceLabel(selectedBooking.spaceFirstOption)} · 2ª{" "}
-                  {getSpaceLabel(selectedBooking.spaceSecondOption)}
-                </p>
-              </section>
-
-              <Separator />
-
-              {/* Solicitante */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <User className="size-4" />
-                  Solicitante
-                </h3>
-                <p className="text-sm font-medium">{selectedBooking.createdBy.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedBooking.createdBy.email}
-                </p>
-              </section>
-
-              <Separator />
-
-              {/* Contato */}
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold">Contato</h3>
-                <p className="text-sm">
-                  Clube: {selectedBooking.clubEmail}
-                </p>
-                <p className="text-sm">
-                  Representante: {selectedBooking.representativeEmail}
-                </p>
-              </section>
-
-              {Array.isArray(selectedBooking.externalGuests) &&
-                (selectedBooking.externalGuests as { name: string; cpf: string }[]).length > 0 && (
-                  <>
-                    <Separator />
-                    <section className="space-y-2">
-                      <h3 className="text-sm font-semibold">Convidados externos</h3>
-                      <ul className="space-y-1 text-sm">
-                        {(selectedBooking.externalGuests as { name: string; cpf: string }[]).map(
-                          (g, i) => (
-                            <li key={i}>
-                              {g.name} · CPF {g.cpf}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </section>
-                  </>
-                )}
-
-              <Separator />
-
-              {/* Ações do admin */}
-              <section className="space-y-4">
-                <h3 className="text-sm font-semibold">Ações</h3>
-
-                {selectedBooking.status === "PENDING" && (
-                  <div className="space-y-3">
-                    <div className="grid gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        Espaço a aprovar
-                      </span>
-                      <Select
-                        value={approvedSpace}
-                        onValueChange={setApprovedSpace}
-                        disabled={statusChanging}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={selectedBooking.spaceFirstOption}>
-                            1ª opção: {getSpaceLabel(selectedBooking.spaceFirstOption)}
-                          </SelectItem>
-                          <SelectItem value={selectedBooking.spaceSecondOption}>
-                            2ª opção: {getSpaceLabel(selectedBooking.spaceSecondOption)}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          handleStatusChange("APPROVED", { approvedSpace })
-                        }
-                        disabled={statusChanging || !approvedSpace}
-                      >
-                        Aprovar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleStatusChange("CANCELLED")}
-                        disabled={statusChanging}
-                      >
-                        Cancelar pedido
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedBooking.status === "APPROVED" && (
-                  <div className="space-y-3">
-                    <div className="grid gap-1 text-sm">
-                      <p>
-                        <span className="text-muted-foreground">Status:</span>{" "}
-                        <span className="font-medium text-green-700 dark:text-green-300">
-                          Aprovado
-                        </span>
-                      </p>
-                      {selectedBooking.approvedSpace && (
-                        <p>
-                          <span className="text-muted-foreground">
-                            Espaço aprovado:
-                          </span>{" "}
-                          <span className="font-medium">
-                            {getSpaceLabel(selectedBooking.approvedSpace)}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleStatusChange("CANCELLED")}
-                        disabled={statusChanging}
-                      >
-                        Cancelar evento
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleStatusChange("PENDING")}
-                        disabled={statusChanging}
-                      >
-                        Voltar para pendente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedBooking.status === "CANCELLED" && (
-                  <div className="space-y-3">
-                    <p className="text-sm">
-                      <span className="text-muted-foreground">Status:</span>{" "}
-                      <span className="font-medium text-red-700 dark:text-red-300">
-                        Cancelado
-                      </span>
-                    </p>
-                    <div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleStatusChange("PENDING")}
-                        disabled={statusChanging}
-                      >
-                        Voltar para pendente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <Separator />
-
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(selectedBooking.id)}
-                  disabled={deleting}
-                  className="gap-2"
-                >
-                  <Trash2 className="size-4" />
-                  Excluir
-                </Button>
-              </section>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <BookingDetailsModal
+        booking={selectedBooking}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        mode="admin"
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }
