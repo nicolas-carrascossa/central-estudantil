@@ -42,16 +42,8 @@ import {
   adminUpdateBookingStatus,
   adminDeleteBooking,
 } from "@/server/booking-admin";
+import { getSpaceLabel } from "@/lib/constants/spaces";
 import { toast } from "sonner";
-
-const SPACE_OPTIONS: Record<string, string> = {
-  auditorio: "Auditório",
-  "sala-reuniao-1": "Sala de Reunião 1",
-  "sala-reuniao-2": "Sala de Reunião 2",
-  "sala-coworking": "Sala Co-working",
-  laboratorio: "Laboratório",
-  "sala-eventos": "Sala de Eventos",
-};
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -403,8 +395,8 @@ export function AdminCalendar() {
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold">Espaço</h3>
                 <p className="text-sm">
-                  1ª {SPACE_OPTIONS[selectedBooking.spaceFirstOption] ?? selectedBooking.spaceFirstOption} · 2ª{" "}
-                  {SPACE_OPTIONS[selectedBooking.spaceSecondOption] ?? selectedBooking.spaceSecondOption}
+                  1ª {getSpaceLabel(selectedBooking.spaceFirstOption)} · 2ª{" "}
+                  {getSpaceLabel(selectedBooking.spaceSecondOption)}
                 </p>
               </section>
 

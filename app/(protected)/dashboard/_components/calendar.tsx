@@ -49,16 +49,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { CreateBookingInput } from "@/lib/schemas/booking";
 import { createBooking, getBookingsByMonth } from "@/server/booking";
+import { SPACE_OPTIONS } from "@/lib/constants/spaces";
 import { toast } from "sonner";
-
-const SPACE_OPTIONS = [
-  { value: "auditorio", label: "Auditório" },
-  { value: "m01", label: "M01" },
-  { value: "sala-reuniao-2", label: "Sala de Reunião 2" },
-  { value: "sala-coworking", label: "Sala Co-working" },
-  { value: "laboratorio", label: "Laboratório" },
-  { value: "sala-eventos", label: "Sala de Eventos" },
-];
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
