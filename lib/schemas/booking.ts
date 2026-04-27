@@ -14,6 +14,7 @@ const externalGuestSchema = z.object({
 
 export const createBookingSchema = z.object({
   title: z.string().min(1, "Nome do evento é obrigatório").max(200),
+  description: z.string().max(2000).optional(),
   date: z.coerce.date(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Horário inválido (use HH:mm)"),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Horário inválido (use HH:mm)"),
