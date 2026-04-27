@@ -103,7 +103,7 @@ Ver [prisma/schema.prisma](prisma/schema.prisma).
   - `status` — enum `BookingStatus` (`PENDING | APPROVED | CANCELLED`), default `PENDING`
   - `createdById` → User (cascade delete), `createdAt`, `updatedAt`
   - Índices em `date` e `createdById`
-- Para alterar schema: `npx prisma migrate dev --name <descrição>` (vai criar migration em `prisma/migrations/` e regenerar o client).
+- Banco gerenciado por **Prisma Migrate** (não usar `db push`). Toda mudança de schema via `npx prisma migrate dev --name <descricao>` seguido de `npx prisma generate` (Prisma 7 não roda generate automaticamente).
 
 ---
 
