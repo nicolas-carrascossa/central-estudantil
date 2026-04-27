@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -68,6 +69,7 @@ export function Calendar() {
 
   const [form, setForm] = useState<CreateBookingInput>({
     title: "",
+    description: "",
     date: new Date(),
     startTime: "09:00",
     endTime: "10:00",
@@ -117,6 +119,7 @@ export function Calendar() {
     setSelectedDate(date);
     setForm({
       title: "",
+      description: "",
       date,
       startTime: "09:00",
       endTime: "10:00",
@@ -492,6 +495,22 @@ export function Calendar() {
                       required
                     />
                   </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Descrição (opcional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Descreva o evento, agenda, observações..."
+                    className="min-h-[80px] bg-muted/60 border-border"
+                    value={form.description ?? ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    maxLength={2000}
+                  />
                 </div>
               </div>
             </section>
