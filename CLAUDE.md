@@ -23,7 +23,19 @@ Plataforma web em **português (pt-BR)** para alunos do Inteli reservarem espaç
 - **date-fns** com locale `ptBR`
 - Validação de env via `@t3-oss/env-nextjs` em [lib/env.ts](lib/env.ts)
   - `DATABASE_URL` (obrigatório), `BETTER_AUTH_SECRET` (obrigatório), `BETTER_AUTH_URL` (opcional)
+  - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SECRETARIA_EMAIL` — todos obrigatórios
   - Não usar `process.env.X` direto no app — sempre importar `env` de [lib/env.ts](lib/env.ts)
+- **Resend** + **React Email** (`@react-email/components`) para e-mails transacionais
+  - Cliente em [lib/email.ts](lib/email.ts), templates em [emails/](emails)
+  - Atualmente em sandbox (`onboarding@resend.dev`); produção exige verificar domínio próprio no Resend
+
+---
+
+## Segurança
+
+- **Nunca imprimir conteúdo de `.env*`** ou outros arquivos com credenciais (`.vscode/settings.json` com env vars embutidas, qualquer `*.local.json`) no chat. Pra confirmar existência, usar `Test-Path` (Windows) ou checagem equivalente sem ler o conteúdo.
+- **Nunca commitar credenciais.** `.env*` já está no `.gitignore` — validar com `git check-ignore -v <arquivo>` antes de adicionar qualquer arquivo de config.
+- Se precisar do valor de uma variável de ambiente, **pedir pro usuário confirmar fora do chat**.
 
 ---
 
@@ -139,6 +151,7 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 - Mobile mostra **só visão semanal** (em coluna), desktop mostra mês completo. Comportamento responsivo via `md:` breakpoint.
 - O calendário admin tem layout idêntico ao do usuário com modal extra de ações — manter consistência.
 - `BETTER_AUTH_URL` opcional: se setado, é adicionado a `trustedOrigins`. `localhost:3000` e `127.0.0.1:3000` já estão por default.
+- E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail` — deveria ser uma lista global gerenciável (modelo `GlobalGuestEmail`, planejado pra Fase 4 do roadmap).
 
 ---
 
@@ -147,7 +160,7 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 1. `SPACE_OPTIONS` duplicado e divergente entre user e admin (ver acima).
 2. **Sem detecção de conflito** — o mesmo espaço pode ser aprovado em horários sobrepostos no mesmo dia.
 3. **Aprovação não registra qual espaço ficou** — não há campo `approvedSpace`; admin aprova mas não diz se foi a 1ª ou 2ª opção.
-4. **Sem envio de email** ao aprovar/cancelar (campos `clubEmail` e `representativeEmail` estão lá mas só guardados).
+4. **Email implementado parcialmente** — Resend ativo via sandbox (`onboarding@resend.dev`); falta verificar domínio próprio no Resend pra produção e migrar `SECRETARIA_EMAIL` pra lista global (planejado pra Fase 4).
 5. **Sem editar booking** — usuário só cria, muda status ou deleta.
 6. **Sem reset de senha** / esqueci minha senha.
 7. **`adminListUsers` sem paginação/busca** (limite 100 fixo).
