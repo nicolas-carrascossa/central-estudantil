@@ -44,3 +44,7 @@ next-env.d.ts
 .claude/settings.local.json
 
 /lib/generated/prisma
+
+# database backups (nunca commitar — contêm dados de produção)
+prisma/backup-*.sql
+prisma/backup-*.json

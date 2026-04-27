@@ -77,21 +77,24 @@ model Verification {
 }
 
 model Booking {
-  id                  String        @id @default(cuid())
-  title               String
-  date                DateTime
-  startTime           String
-  endTime             String
-  spaceFirstOption    String
-  spaceSecondOption   String
-  externalGuests      Json? // [{ name: string, cpf: string, email?: string }]
-  clubEmail           String
-  representativeEmail String
-  status              BookingStatus @default(PENDING)
-  createdById         String
-  createdBy           User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                      String        @id @default(cuid())
+  title                   String
+  description             String?
+  date                    DateTime
+  startTime               String
+  endTime                 String
+  spaceFirstOption        String
+  spaceSecondOption       String
+  approvedSpace           String?
+  externalGuests          Json? // [{ name: string, cpf: string, email?: string }]
+  clubEmail               String
+  representativeEmail     String
+  status                  BookingStatus @default(PENDING)
+  importedFromSpreadsheet Boolean       @default(false)
+  createdById             String
+  createdBy               User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
   @@index([date])
   @@index([createdById])
