@@ -169,6 +169,10 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 10. README ainda é o boilerplate do `create-next-app` — substituir.
 11. Mobile não tem visão de mês.
 12. **LGPD — payload vazado client-side**: `getBookingsByMonth` ([server/booking.ts](server/booking.ts)) retorna o booking completo (incluindo `externalGuests` com CPF, `clubEmail`, `representativeEmail`, `createdBy.name/email`) mesmo pra bookings que o usuário **não é dono**. O modal modo `"public"` ([components/booking-details-modal.tsx](components/booking-details-modal.tsx)) oculta esses campos na UI, mas o dado já está no payload do browser (acessível via React DevTools / Network). **Solução:** filtrar campos sensíveis no server quando `booking.createdById !== session.user.id` e `status === "APPROVED"` — retornar só title, description, date, startTime/endTime, approvedSpace (e os 2 spaceOption se ainda PENDING, embora público nem deveria ver PENDING).
+13. **Sem toggle de dark/light mode no header** — `next-themes` já configurado via `ThemeProvider` em [app/layout.tsx](app/layout.tsx), mas não há controle de UI pra trocar. Adicionar dropdown ou icon button (`Sun`/`Moon` do `lucide-react`) em [components/app-header.tsx](components/app-header.tsx).
+14. **Admin em `/dashboard` vê visão de clube comum** — não é redirecionado pra `/z_admin`. Decidir comportamento: redirect, esconder link, ou unificar visões. O badge "Admin" no header já permite o atalho de volta, mas a entrada lateral existe.
+15. **`bg-blue-50` hardcoded em [app/(admin)/layout.tsx](app/(admin)/layout.tsx)** — viola a regra "sempre tokens, nunca cores de palette hardcoded" e não responde a tema dark. Trocar por `bg-muted/30` ou similar.
+16. **Worktrees antigas pra limpar** (housekeeping de dev) — após merge desta branch, remover `claude/sharp-poincare-b6f566` (worktree em `.claude/worktrees/` + branches local e remota); também `claude/hopeful-clarke-99e4f6` que aparece em `git branch -vv` sem uso ativo.
 
 ---
 
