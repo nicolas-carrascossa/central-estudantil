@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { DashboardHeader } from "./dashboard/_components/header";
+import { AppHeader } from "@/components/app-header";
 import { auth } from "@/lib/auth";
 
 export default async function ProtectedLayout({
@@ -19,7 +19,7 @@ export default async function ProtectedLayout({
 
   return (
     <div className="flex min-h-svh flex-col">
-      <DashboardHeader user={session.user} />
+      <AppHeader user={session.user} variant="user" />
       <main className="flex-1 p-6">{children}</main>
     </div>
   );
