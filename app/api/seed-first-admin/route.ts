@@ -1,8 +1,15 @@
   import { NextRequest, NextResponse } from "next/server";
   import { auth } from "@/lib/auth";
+  import prisma from "@/lib/db";
 
   export async function POST(req: NextRequest) {
     try {
+      const adminCount = await prisma.user.count({ where: { role: "admin" } });
+      if (adminCount >= 1) {
+        console.warn("[seed-first-admin] tentativa bloqueada — admin ja existe");
+        return NextResponse.json({ error: "Operação não permitida" }, { status: 403 });
+      }
+
       const body = await req.json();
       const { name, email, password } = body;
 
