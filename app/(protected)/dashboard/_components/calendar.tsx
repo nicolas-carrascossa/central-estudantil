@@ -56,6 +56,17 @@ import { toast } from "sonner";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
+function getBookingClasses(status: "PENDING" | "APPROVED" | "CANCELLED") {
+  switch (status) {
+    case "APPROVED":
+      return "border-emerald-200 bg-emerald-50 text-emerald-900 border-l-emerald-500 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100";
+    case "CANCELLED":
+      return "border-rose-200 bg-rose-50 text-rose-900 border-l-rose-500 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100";
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-900 border-l-amber-500 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100";
+  }
+}
+
 type BookingFromDb = Awaited<ReturnType<typeof getBookingsByMonth>>[number];
 
 export function Calendar({ currentUserId }: { currentUserId: string }) {
@@ -240,18 +251,19 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
           past
             ? "cursor-not-allowed bg-muted/40 opacity-60"
             : "cursor-pointer hover:bg-muted/50",
-          !past && (isCurrentMonth ? "bg-card" : "bg-muted/30"),
+          !past &&
+            (isCurrentMonth ? "bg-card" : "bg-muted/20 opacity-70"),
         )}
       >
         <div className="flex items-start justify-between">
           <span
             className={cn(
-              "flex size-7 items-center justify-center rounded-md text-xs font-medium",
+              "flex size-7 items-center justify-center text-xs font-medium",
               isToday(day)
-                ? "bg-primary text-primary-foreground"
+                ? "rounded-full bg-primary text-primary-foreground"
                 : isCurrentMonth
-                  ? "text-foreground"
-                  : "text-muted-foreground",
+                  ? "rounded-md text-foreground"
+                  : "rounded-md text-muted-foreground",
             )}
           >
             {format(day, "d")}
@@ -267,15 +279,15 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
               type="button"
               onClick={(e) => openDetailModal(booking, e)}
               className={cn(
-                "truncate rounded px-1.5 py-1 text-left text-[10px] font-medium transition-opacity hover:opacity-90",
-                booking.status === "APPROVED"
-                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
-                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200",
+                "truncate rounded-md border border-l-4 px-2 py-1 text-left text-xs font-medium transition-shadow duration-150 hover:shadow-sm",
+                getBookingClasses(booking.status),
               )}
               title={`${booking.startTime} - ${booking.title} (${booking.createdBy.name})`}
             >
-              <span className="font-bold opacity-75">{booking.startTime} </span>
-              <span className="truncate">{booking.title}</span>
+              <span className="font-semibold tabular-nums opacity-70">
+                {booking.startTime}
+              </span>{" "}
+              <span>{booking.title}</span>
             </button>
           ))}
         </div>
@@ -351,11 +363,11 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
 
         <div className="flex items-center gap-4 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium">
           <div className="flex items-center gap-2">
-            <span className="size-3 rounded-full bg-yellow-400" />
+            <span className="size-3 rounded-full bg-amber-500" />
             Pendente
           </div>
           <div className="flex items-center gap-2">
-            <span className="size-3 rounded-full bg-green-500" />
+            <span className="size-3 rounded-full bg-emerald-500" />
             Aprovado
           </div>
         </div>
@@ -391,12 +403,12 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
                 </span>
                 <span
                   className={cn(
-                    "mt-0.5 flex size-9 items-center justify-center rounded-lg text-sm font-semibold",
+                    "mt-0.5 flex size-9 items-center justify-center text-sm font-semibold",
                     isToday(day)
-                      ? "bg-primary text-primary-foreground"
+                      ? "rounded-full bg-primary text-primary-foreground"
                       : isSameMonth(day, currentMonth)
-                        ? "bg-muted text-foreground"
-                        : "bg-muted/80 text-muted-foreground",
+                        ? "rounded-lg bg-muted text-foreground"
+                        : "rounded-lg bg-muted/80 text-muted-foreground",
                   )}
                 >
                   {format(day, "d")}
@@ -411,14 +423,15 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
                       type="button"
                       onClick={(e) => openDetailModal(booking, e)}
                       className={cn(
-                        "truncate rounded px-2 py-1 text-left text-xs font-medium transition-opacity hover:opacity-90",
-                        booking.status === "APPROVED"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200",
+                        "truncate rounded-md border border-l-4 px-2 py-1.5 text-left text-sm font-medium transition-shadow duration-150 hover:shadow-sm",
+                        getBookingClasses(booking.status),
                       )}
                       title={`${booking.startTime} - ${booking.title} (${booking.createdBy.name})`}
                     >
-                      {booking.startTime} {booking.title}
+                      <span className="font-semibold tabular-nums opacity-70">
+                        {booking.startTime}
+                      </span>{" "}
+                      {booking.title}
                     </button>
                   ))}
               </div>
@@ -436,7 +449,7 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1 p-1">
+        <div className="grid grid-cols-7 gap-1.5 p-2">
           {monthDays.map((day, index) => (
             <DayCell
               key={index}
