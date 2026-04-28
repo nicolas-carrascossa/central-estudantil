@@ -22,7 +22,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { getSpaceLabel } from "@/lib/constants/spaces";
 
-export type BookingForModal = {
+export type OwnerOrAdminBookingForModal = {
   id: string;
   title: string;
   description: string | null;
@@ -39,19 +39,40 @@ export type BookingForModal = {
   createdBy: { id: string; name: string; email: string };
 };
 
+export type PublicBookingForModal = {
+  id: string;
+  title: string;
+  description: string | null;
+  date: string | Date;
+  startTime: string;
+  endTime: string;
+  approvedSpace: string | null;
+  // Em runtime status é sempre "APPROVED" (filtrado no servidor), mas o tipo
+  // do Prisma não estreita por WHERE — manter o enum completo aqui evita
+  // cast desnecessário no calendar e mantém consistência com o modelo.
+  status: "PENDING" | "APPROVED" | "CANCELLED";
+};
+
 export type BookingDetailsMode = "admin" | "owner" | "public";
 
-type Props = {
-  booking: BookingForModal | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  mode: BookingDetailsMode;
-  onStatusChange?: (
-    status: "PENDING" | "APPROVED" | "CANCELLED",
-    approvedSpace?: string
-  ) => Promise<void>;
-  onDelete?: () => Promise<void>;
-};
+type Props =
+  | {
+      mode: "admin" | "owner";
+      booking: OwnerOrAdminBookingForModal | null;
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      onStatusChange?: (
+        status: "PENDING" | "APPROVED" | "CANCELLED",
+        approvedSpace?: string
+      ) => Promise<void>;
+      onDelete?: () => Promise<void>;
+    }
+  | {
+      mode: "public";
+      booking: PublicBookingForModal | null;
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+    };
 
 type ExternalGuest = { name: string; cpf: string; email?: string };
 
@@ -61,63 +82,61 @@ function isExternalGuest(g: unknown): g is ExternalGuest {
   return typeof obj.name === "string" && typeof obj.cpf === "string";
 }
 
-export function BookingDetailsModal({
-  booking,
-  open,
-  onOpenChange,
-  mode,
-  onStatusChange,
-  onDelete,
-}: Props) {
+export function BookingDetailsModal(props: Props) {
   const [approvedSpace, setApprovedSpace] = useState<string>("");
   const [statusChanging, setStatusChanging] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (booking) {
-      setApprovedSpace(booking.approvedSpace ?? booking.spaceFirstOption);
+    if (!props.booking) return;
+    if (props.mode === "public") {
+      setApprovedSpace(props.booking.approvedSpace ?? "");
+    } else {
+      setApprovedSpace(
+        props.booking.approvedSpace ?? props.booking.spaceFirstOption
+      );
     }
-  }, [booking]);
+  }, [props.booking, props.mode]);
 
-  if (!booking) return null;
+  if (!props.booking) return null;
 
-  const showPrivateInfo = mode === "admin" || mode === "owner";
-  const showActions = mode === "admin";
-  const externalGuests = Array.isArray(booking.externalGuests)
-    ? (booking.externalGuests as unknown[]).filter(isExternalGuest)
-    : [];
+  const externalGuests =
+    (props.mode === "admin" || props.mode === "owner") &&
+    Array.isArray(props.booking.externalGuests)
+      ? (props.booking.externalGuests as unknown[]).filter(isExternalGuest)
+      : [];
 
   const handleStatus = async (
     status: "PENDING" | "APPROVED" | "CANCELLED",
     approvedSpaceArg?: string
   ) => {
-    if (!onStatusChange) return;
+    if (props.mode !== "admin" || !props.onStatusChange) return;
     setStatusChanging(true);
     try {
-      await onStatusChange(status, approvedSpaceArg);
+      await props.onStatusChange(status, approvedSpaceArg);
     } finally {
       setStatusChanging(false);
     }
   };
 
   const handleDeleteClick = async () => {
-    if (!onDelete) return;
+    if (props.mode !== "admin" || !props.onDelete) return;
     setDeleting(true);
     try {
-      await onDelete();
+      await props.onDelete();
     } finally {
       setDeleting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[520px]">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg">
             Detalhes do agendamento
             <span className="mt-1 block text-sm font-normal text-muted-foreground">
-              {format(new Date(booking.date), "EEEE, dd 'de' MMMM", {
+              {format(new Date(props.booking.date), "EEEE, dd 'de' MMMM", {
                 locale: ptBR,
               })}
             </span>
@@ -128,13 +147,13 @@ export function BookingDetailsModal({
           {/* Evento */}
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Evento</h3>
-            <p className="font-medium">{booking.title}</p>
+            <p className="font-medium">{props.booking.title}</p>
             <p className="text-sm text-muted-foreground">
-              {booking.startTime} – {booking.endTime}
+              {props.booking.startTime} – {props.booking.endTime}
             </p>
-            {booking.description && (
+            {props.booking.description && (
               <p className="whitespace-pre-wrap text-sm text-foreground/80">
-                {booking.description}
+                {props.booking.description}
               </p>
             )}
           </section>
@@ -144,22 +163,26 @@ export function BookingDetailsModal({
           {/* Espaço */}
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Espaço</h3>
-            {booking.approvedSpace ? (
+            {props.booking.approvedSpace ? (
               <p className="text-sm">
                 <span className="text-muted-foreground">Aprovado:</span>{" "}
                 <span className="font-medium">
-                  {getSpaceLabel(booking.approvedSpace)}
+                  {getSpaceLabel(props.booking.approvedSpace)}
                 </span>
+              </p>
+            ) : props.mode === "public" ? (
+              <p className="text-sm text-muted-foreground">
+                Espaço não informado
               </p>
             ) : (
               <p className="text-sm">
-                1ª {getSpaceLabel(booking.spaceFirstOption)} · 2ª{" "}
-                {getSpaceLabel(booking.spaceSecondOption)}
+                1ª {getSpaceLabel(props.booking.spaceFirstOption)} · 2ª{" "}
+                {getSpaceLabel(props.booking.spaceSecondOption)}
               </p>
             )}
           </section>
 
-          {showPrivateInfo && (
+          {(props.mode === "admin" || props.mode === "owner") && (
             <>
               <Separator />
 
@@ -169,9 +192,11 @@ export function BookingDetailsModal({
                   <User className="size-4" />
                   Solicitante
                 </h3>
-                <p className="text-sm font-medium">{booking.createdBy.name}</p>
+                <p className="text-sm font-medium">
+                  {props.booking.createdBy.name}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {booking.createdBy.email}
+                  {props.booking.createdBy.email}
                 </p>
               </section>
 
@@ -180,9 +205,9 @@ export function BookingDetailsModal({
               {/* Contato */}
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold">Contato</h3>
-                <p className="text-sm">Clube: {booking.clubEmail}</p>
+                <p className="text-sm">Clube: {props.booking.clubEmail}</p>
                 <p className="text-sm">
-                  Representante: {booking.representativeEmail}
+                  Representante: {props.booking.representativeEmail}
                 </p>
               </section>
 
@@ -205,14 +230,14 @@ export function BookingDetailsModal({
             </>
           )}
 
-          {showActions && (
+          {props.mode === "admin" && (
             <>
               <Separator />
 
               <section className="space-y-4">
                 <h3 className="text-sm font-semibold">Ações</h3>
 
-                {booking.status === "PENDING" && (
+                {props.booking.status === "PENDING" && (
                   <div className="space-y-3">
                     <div className="grid gap-2">
                       <span className="text-sm text-muted-foreground">
@@ -227,11 +252,11 @@ export function BookingDetailsModal({
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={booking.spaceFirstOption}>
-                            1ª opção: {getSpaceLabel(booking.spaceFirstOption)}
+                          <SelectItem value={props.booking.spaceFirstOption}>
+                            1ª opção: {getSpaceLabel(props.booking.spaceFirstOption)}
                           </SelectItem>
-                          <SelectItem value={booking.spaceSecondOption}>
-                            2ª opção: {getSpaceLabel(booking.spaceSecondOption)}
+                          <SelectItem value={props.booking.spaceSecondOption}>
+                            2ª opção: {getSpaceLabel(props.booking.spaceSecondOption)}
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -256,7 +281,7 @@ export function BookingDetailsModal({
                   </div>
                 )}
 
-                {booking.status === "APPROVED" && (
+                {props.booking.status === "APPROVED" && (
                   <div className="space-y-3">
                     <div className="grid gap-1 text-sm">
                       <p>
@@ -265,13 +290,13 @@ export function BookingDetailsModal({
                           Aprovado
                         </span>
                       </p>
-                      {booking.approvedSpace && (
+                      {props.booking.approvedSpace && (
                         <p>
                           <span className="text-muted-foreground">
                             Espaço aprovado:
                           </span>{" "}
                           <span className="font-medium">
-                            {getSpaceLabel(booking.approvedSpace)}
+                            {getSpaceLabel(props.booking.approvedSpace)}
                           </span>
                         </p>
                       )}
@@ -297,7 +322,7 @@ export function BookingDetailsModal({
                   </div>
                 )}
 
-                {booking.status === "CANCELLED" && (
+                {props.booking.status === "CANCELLED" && (
                   <div className="space-y-3">
                     <p className="text-sm">
                       <span className="text-muted-foreground">Status:</span>{" "}

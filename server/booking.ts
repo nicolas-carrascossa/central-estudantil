@@ -5,36 +5,89 @@ import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { createBookingSchema, type CreateBookingInput } from "@/lib/schemas/booking";
 import { sendNewBookingRequestEmail, sendBookingStatusUpdateEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 
-export async function getBookingsByMonth(year: number, month: number) {
+const PUBLIC_BOOKING_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  approvedSpace: true,
+  status: true,
+} satisfies Prisma.BookingSelect;
+
+const OWNED_BOOKING_INCLUDE = {
+  createdBy: {
+    select: { id: true, name: true, email: true },
+  },
+} satisfies Prisma.BookingInclude;
+
+export type OwnedBookingDTO = Prisma.BookingGetPayload<{
+  include: typeof OWNED_BOOKING_INCLUDE;
+}> & { isOwn: true };
+
+export type PublicBookingDTO = Prisma.BookingGetPayload<{
+  select: typeof PUBLIC_BOOKING_SELECT;
+}> & { isOwn: false };
+
+export type BookingDTO = OwnedBookingDTO | PublicBookingDTO;
+
+// Minimização de dados (LGPD art. 6º, IX): bookings de outros usuários só
+// trazem campos públicos (sem CPF de convidados, sem e-mails de contato, sem
+// identificação do solicitante). Em vez de filtrar campos no JS após o fetch,
+// fazemos duas queries com `include`/`select` distintos — assim o payload sai
+// do banco já minimizado e nunca é serializado pro cliente. A flag `isOwn`
+// discrimina os dois shapes na união retornada.
+export async function getBookingsByMonth(
+  year: number,
+  month: number
+): Promise<BookingDTO[]> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return [];
 
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59);
+  const userId = session.user.id;
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      OR: [
-        { createdById: session.user.id },
-        { status: "APPROVED" }],
-      date: {
-        gte: startDate,
-        lte: endDate,
+  const [owned, publicBookings] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        createdById: userId,
+        date: { gte: startDate, lte: endDate },
       },
-    },
-    include: {
-      createdBy: {
-        select: { id: true, name: true, email: true },
+      include: OWNED_BOOKING_INCLUDE,
+    }),
+    prisma.booking.findMany({
+      where: {
+        createdById: { not: userId },
+        status: "APPROVED",
+        date: { gte: startDate, lte: endDate },
       },
-    },
-    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+      select: PUBLIC_BOOKING_SELECT,
+    }),
+  ]);
+
+  const merged: BookingDTO[] = [
+    ...owned.map((b) => ({ ...b, isOwn: true as const })),
+    ...publicBookings.map((b) => ({ ...b, isOwn: false as const })),
+  ];
+
+  // Ordenação invariante (date asc, startTime asc) garantida no servidor
+  // independente da ordem de chegada das duas queries. localeCompare é seguro
+  // pra startTime porque o formato é sempre "HH:mm" com 2 dígitos zero-padded
+  // — comparação lexicográfica equivale à cronológica nesse formato fixo.
+  merged.sort((a, b) => {
+    const dateDiff = a.date.getTime() - b.date.getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return a.startTime.localeCompare(b.startTime);
   });
 
-  return bookings;
+  return merged;
 }
 
 export async function createBooking(input: CreateBookingInput) {
