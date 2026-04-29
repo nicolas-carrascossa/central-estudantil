@@ -106,3 +106,11 @@ enum BookingStatus {
   APPROVED
   CANCELLED
 }
+
+model GlobalGuestEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("global_guest_email")
+}

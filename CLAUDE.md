@@ -103,6 +103,10 @@ Ver [prisma/schema.prisma](prisma/schema.prisma).
   - `status` — enum `BookingStatus` (`PENDING | APPROVED | CANCELLED`), default `PENDING`
   - `createdById` → User (cascade delete), `createdAt`, `updatedAt`
   - Índices em `date` e `createdById`
+- **`GlobalGuestEmail`** (Sessão 2):
+  - `id` (cuid), `email` (unique), `createdAt`
+  - Lista global de emails que **sempre receberão convite** em eventos aprovados.
+  - Gerenciada pelo admin em `/z_admin` na tab "Convidados globais". CRUD pronto, **não integrada** ao fluxo de e-mail / Google Calendar ainda — uso real fica pra Sessão 3.
 - Banco gerenciado por **Prisma Migrate** (não usar `db push`). Toda mudança de schema via `npx prisma migrate dev --name <descricao>` seguido de `npx prisma generate` (Prisma 7 não roda generate automaticamente).
 
 ---
@@ -151,7 +155,8 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 - Mobile mostra **só visão semanal** (em coluna), desktop mostra mês completo. Comportamento responsivo via `md:` breakpoint.
 - O calendário admin tem layout idêntico ao do usuário com modal extra de ações — manter consistência.
 - `BETTER_AUTH_URL` opcional: se setado, é adicionado a `trustedOrigins`. `localhost:3000` e `127.0.0.1:3000` já estão por default.
-- E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail` — deveria ser uma lista global gerenciável (modelo `GlobalGuestEmail`, planejado pra Fase 4 do roadmap).
+- E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail`. O modelo `GlobalGuestEmail` já existe (Sessão 2) com CRUD em `/z_admin`, mas o fluxo de e-mail/Google Calendar ainda **não consome** essa lista — integração fica pra Sessão 3.
+- **Páginas que são client components** (ex: [app/(admin)/z_admin/page.tsx](app/(admin)/z_admin/page.tsx), que usa `useState` pra tabs) **não atualizam UI via `revalidatePath` puro** — o componente client não é re-renderizado pelo servidor após mutação. Padrão atual em server actions de admin: chamar `revalidatePath("/z_admin")` normalmente (útil pra cache de RSC em outras navegações), e no client fazer **refetch após create + update otimista após delete**. Aplicado em [server/global-guest-email.ts](server/global-guest-email.ts) + [global-guest-list.tsx](app/(admin)/z_admin/_components/global-guest-list.tsx).
 
 ---
 
@@ -173,6 +178,8 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 14. **Admin em `/dashboard` vê visão de clube comum** — não é redirecionado pra `/z_admin`. Decidir comportamento: redirect, esconder link, ou unificar visões. O badge "Admin" no header já permite o atalho de volta, mas a entrada lateral existe.
 15. **✅ RESOLVIDO (Sessão 1): `bg-blue-50` hardcoded em [app/(admin)/layout.tsx](app/(admin)/layout.tsx)** (commit `0dc8b27`) — violava a regra "sempre tokens, nunca cores de palette hardcoded" e não respondia a tema dark. **Solução aplicada:** trocado por `bg-muted`.
 16. **Worktrees antigas pra limpar** (housekeeping de dev) — após merge desta branch, remover `claude/sharp-poincare-b6f566` (worktree em `.claude/worktrees/` + branches local e remota); também `claude/hopeful-clarke-99e4f6` que aparece em `git branch -vv` sem uso ativo.
+17. **Confirmações de exclusão usam `window.confirm()` legado** em [admin-calendar.tsx:126](app/(admin)/z_admin/_components/admin-calendar.tsx:126) e [user-list.tsx:121](app/(admin)/z_admin/_components/user-list.tsx:121) — a partir da Sessão 2, o padrão é `AlertDialog` do shadcn (ver [global-guest-list.tsx](app/(admin)/z_admin/_components/global-guest-list.tsx)). Refatorar pra consistência de UX. Baixa prioridade.
+18. **Helper `isAdmin()` está duplicado idêntico** em [server/booking-admin.ts](server/booking-admin.ts), [server/user-admin.ts](server/user-admin.ts) e [server/global-guest-email.ts](server/global-guest-email.ts). Candidato a extrair pra `lib/auth-helpers.ts` ou similar.
 
 ---
 
