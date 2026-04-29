@@ -22,7 +22,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-blue-50">
+    <div className="flex min-h-svh flex-col bg-muted">
       <AppHeader user={session.user} variant="admin" />
       <main className="flex-1 p-6">{children}</main>
     </div>

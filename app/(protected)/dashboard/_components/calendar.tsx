@@ -69,7 +69,7 @@ function getBookingClasses(status: "PENDING" | "APPROVED" | "CANCELLED") {
 
 type BookingFromDb = Awaited<ReturnType<typeof getBookingsByMonth>>[number];
 
-export function Calendar({ currentUserId }: { currentUserId: string }) {
+export function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [bookings, setBookings] = useState<BookingFromDb[]>([]);
@@ -282,7 +282,11 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
                 "truncate rounded-md border border-l-4 px-2 py-1 text-left text-xs font-medium transition-shadow duration-150 hover:shadow-sm",
                 getBookingClasses(booking.status),
               )}
-              title={`${booking.startTime} - ${booking.title} (${booking.createdBy.name})`}
+              title={
+                booking.isOwn
+                  ? `${booking.startTime} - ${booking.title} (${booking.createdBy.name})`
+                  : `${booking.startTime} - ${booking.title}`
+              }
             >
               <span className="font-semibold tabular-nums opacity-70">
                 {booking.startTime}
@@ -426,7 +430,11 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
                         "truncate rounded-md border border-l-4 px-2 py-1.5 text-left text-sm font-medium transition-shadow duration-150 hover:shadow-sm",
                         getBookingClasses(booking.status),
                       )}
-                      title={`${booking.startTime} - ${booking.title} (${booking.createdBy.name})`}
+                      title={
+                        booking.isOwn
+                          ? `${booking.startTime} - ${booking.title} (${booking.createdBy.name})`
+                          : `${booking.startTime} - ${booking.title}`
+                      }
                     >
                       <span className="font-semibold tabular-nums opacity-70">
                         {booking.startTime}
@@ -773,14 +781,21 @@ export function Calendar({ currentUserId }: { currentUserId: string }) {
         </DialogContent>
       </Dialog>
 
-      <BookingDetailsModal
-        booking={selectedBooking}
-        open={detailModalOpen}
-        onOpenChange={setDetailModalOpen}
-        mode={
-          selectedBooking?.createdById === currentUserId ? "owner" : "public"
-        }
-      />
+      {selectedBooking?.isOwn ? (
+        <BookingDetailsModal
+          booking={selectedBooking}
+          open={detailModalOpen}
+          onOpenChange={setDetailModalOpen}
+          mode="owner"
+        />
+      ) : (
+        <BookingDetailsModal
+          booking={selectedBooking ?? null}
+          open={detailModalOpen}
+          onOpenChange={setDetailModalOpen}
+          mode="public"
+        />
+      )}
     </div>
   );
 }
