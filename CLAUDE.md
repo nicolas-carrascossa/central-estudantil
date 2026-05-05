@@ -111,13 +111,13 @@ Ver [prisma/schema.prisma](prisma/schema.prisma).
 
 ---
 
-## Espaços disponíveis (atenção: hoje duplicado e divergente)
+## Espaços disponíveis
 
-Lista hard-coded em **dois** lugares com valores diferentes:
-- [calendar.tsx:54](app/(protected)/dashboard/_components/calendar.tsx:54): `auditorio`, `m01`, `sala-reuniao-2`, `sala-coworking`, `laboratorio`, `sala-eventos`
-- [admin-calendar.tsx:47](app/(admin)/z_admin/_components/admin-calendar.tsx:47): `auditorio`, `sala-reuniao-1`, `sala-reuniao-2`, `sala-coworking`, `laboratorio`, `sala-eventos`
+Lista canônica em [lib/constants/spaces.ts](lib/constants/spaces.ts):
+- `SPACE_OPTIONS`: array com `{ value, label }` pros 6 espaços (auditório, salas de reunião 1 e 2, coworking, laboratório, sala de eventos)
+- `getSpaceLabel(value)`: helper pra converter slug em label legível
 
-Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`** exportando `SPACE_OPTIONS: { value: string; label: string }[]` e usar dos dois lados. Se o admin precisar editar, virar tabela no Prisma.
+Importar de lá em qualquer fluxo que precise de slug ou label. Não duplicar a lista em outros arquivos.
 
 ---
 
@@ -162,10 +162,10 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 
 ## Lacunas conhecidas (candidatos a features)
 
-1. `SPACE_OPTIONS` duplicado e divergente entre user e admin (ver acima).
+1. **✅ RESOLVIDO (Fase 1+2): `SPACE_OPTIONS` duplicado e divergente entre user e admin** — lista canônica em [lib/constants/spaces.ts](lib/constants/spaces.ts) com `SPACE_OPTIONS` + `getSpaceLabel()`, importada em [calendar.tsx](app/(protected)/dashboard/_components/calendar.tsx) e [booking-details-modal.tsx](components/booking-details-modal.tsx). Sem strings hardcoded sobrando.
 2. **Sem detecção de conflito** — o mesmo espaço pode ser aprovado em horários sobrepostos no mesmo dia.
-3. **Aprovação não registra qual espaço ficou** — não há campo `approvedSpace`; admin aprova mas não diz se foi a 1ª ou 2ª opção.
-4. **Email implementado parcialmente** — Resend ativo via sandbox (`onboarding@resend.dev`); falta verificar domínio próprio no Resend pra produção e migrar `SECRETARIA_EMAIL` pra lista global (planejado pra Fase 4).
+3. **✅ RESOLVIDO (Fase 1+2): Aprovação não registrava qual espaço ficou** — `Booking.approvedSpace` existe em [prisma/schema.prisma](prisma/schema.prisma); [server/booking-admin.ts](server/booking-admin.ts) valida que `approvedSpace` deve ser `spaceFirstOption` ou `spaceSecondOption` antes de aprovar; [components/booking-details-modal.tsx](components/booking-details-modal.tsx) renderiza Select com 1ª/2ª opção pro admin escolher.
+4. **Email implementado parcialmente** — E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail`. O modelo `GlobalGuestEmail` já existe (Sessão 2) com CRUD em `/z_admin`, mas o fluxo de e-mail/Google Calendar ainda **não consome** essa lista — integração fica pra Sessão 3.
 5. **Sem editar booking** — usuário só cria, muda status ou deleta.
 6. **Sem reset de senha** / esqueci minha senha.
 7. **`adminListUsers` sem paginação/busca** (limite 100 fixo).
@@ -177,7 +177,7 @@ Ao mexer em qualquer fluxo de espaços, **unificar em `lib/constants/spaces.ts`*
 13. **Sem toggle de dark/light mode no header** — `next-themes` já configurado via `ThemeProvider` em [app/layout.tsx](app/layout.tsx), mas não há controle de UI pra trocar. Adicionar dropdown ou icon button (`Sun`/`Moon` do `lucide-react`) em [components/app-header.tsx](components/app-header.tsx).
 14. **Admin em `/dashboard` vê visão de clube comum** — não é redirecionado pra `/z_admin`. Decidir comportamento: redirect, esconder link, ou unificar visões. O badge "Admin" no header já permite o atalho de volta, mas a entrada lateral existe.
 15. **✅ RESOLVIDO (Sessão 1): `bg-blue-50` hardcoded em [app/(admin)/layout.tsx](app/(admin)/layout.tsx)** (commit `0dc8b27`) — violava a regra "sempre tokens, nunca cores de palette hardcoded" e não respondia a tema dark. **Solução aplicada:** trocado por `bg-muted`.
-16. **Worktrees antigas pra limpar** (housekeeping de dev) — após merge desta branch, remover `claude/sharp-poincare-b6f566` (worktree em `.claude/worktrees/` + branches local e remota); também `claude/hopeful-clarke-99e4f6` que aparece em `git branch -vv` sem uso ativo.
+16. **Branches/worktrees pra limpar** (housekeeping pós-entrega) — `claude/sharp-poincare-b6f566`, `claude/hopeful-clarke-99e4f6`, `claude/elated-goldstine-955efe` (já mergeada Sessão 2), `claude/sessao-1-quick-wins-qualidade` (já mergeada Sessão 1), e quaisquer outras branches em `git branch --all` que estejam mergeadas em main. Worktrees correspondentes em `.claude/worktrees/` também removíveis. Não bloqueante — fazer no fim da semana antes da reunião.
 17. **Confirmações de exclusão usam `window.confirm()` legado** em [admin-calendar.tsx:126](app/(admin)/z_admin/_components/admin-calendar.tsx:126) e [user-list.tsx:121](app/(admin)/z_admin/_components/user-list.tsx:121) — a partir da Sessão 2, o padrão é `AlertDialog` do shadcn (ver [global-guest-list.tsx](app/(admin)/z_admin/_components/global-guest-list.tsx)). Refatorar pra consistência de UX. Baixa prioridade.
 18. **Helper `isAdmin()` está duplicado idêntico** em [server/booking-admin.ts](server/booking-admin.ts), [server/user-admin.ts](server/user-admin.ts) e [server/global-guest-email.ts](server/global-guest-email.ts). Candidato a extrair pra `lib/auth-helpers.ts` ou similar.
 
