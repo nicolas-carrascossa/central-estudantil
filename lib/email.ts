@@ -46,16 +46,18 @@ export async function sendNewBookingRequestEmail(params: {
 }
 
 export async function sendBookingStatusUpdateEmail(params: {
-  to: string;
+  to: string | string[];
+  bcc?: string[];
   title: string;
   status: "APPROVED" | "CANCELLED";
 }) {
-  const { to, title, status } = params;
+  const { to, bcc, title, status } = params;
 
   const subjectPrefix = status === "APPROVED" ? "Aprovado" : "Cancelado";
 
   const result = await resend.emails.send({
     to,
+    bcc,
     subject: `Agendamento ${subjectPrefix}: ${title}`,
     react: BookingStatusUpdateEmail({ title, status }),
     from: env.RESEND_FROM_EMAIL,
