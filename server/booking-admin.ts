@@ -83,8 +83,55 @@ export async function adminUpdateBookingStatus(
 
     if (status === "APPROVED" || status === "CANCELLED") {
       try {
+        const dedupe = (emails: string[]): string[] => {
+          const seen = new Set<string>();
+          const result: string[] = [];
+          for (const raw of emails) {
+            const normalized = raw.trim().toLowerCase();
+            if (!normalized || seen.has(normalized)) continue;
+            seen.add(normalized);
+            result.push(normalized);
+          }
+          return result;
+        };
+
+        const to = dedupe([updated.clubEmail, updated.representativeEmail]);
+        let bcc: string[] | undefined;
+
+        if (status === "APPROVED") {
+          let globalEmails: string[] = [];
+          try {
+            const list = await prisma.globalGuestEmail.findMany({
+              select: { email: true },
+            });
+            globalEmails = list.map((g) => g.email);
+          } catch (err) {
+            console.error("Erro ao buscar lista global:", err);
+          }
+
+          const externosComEmail: string[] = [];
+          const guests = updated.externalGuests;
+          if (Array.isArray(guests)) {
+            for (const g of guests) {
+              if (g && typeof g === "object" && "email" in g) {
+                const e = (g as { email?: unknown }).email;
+                if (typeof e === "string" && e.trim()) {
+                  externosComEmail.push(e);
+                }
+              }
+            }
+          }
+
+          const toSet = new Set(to);
+          const bccDeduped = dedupe([...globalEmails, ...externosComEmail]).filter(
+            (e) => !toSet.has(e)
+          );
+          bcc = bccDeduped.length > 0 ? bccDeduped : undefined;
+        }
+
         await sendBookingStatusUpdateEmail({
-          to: updated.clubEmail,
+          to,
+          bcc,
           title: updated.title,
           status,
         });

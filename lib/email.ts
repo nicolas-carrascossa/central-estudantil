@@ -22,7 +22,7 @@ export async function sendNewBookingRequestEmail(params: {
 
   const formattedDate = format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     to,
     subject: `Nova solicitação de agendamento: ${title}`,
     react: NewBookingRequestEmail({
@@ -37,21 +37,35 @@ export async function sendNewBookingRequestEmail(params: {
     }),
     from: env.RESEND_FROM_EMAIL,
   });
+  if (result.error) {
+    console.error("[Resend] envio rejeitado:", result.error);
+    throw new Error(
+      `Resend rejeitou: ${result.error.name} — ${result.error.message}`
+    );
+  }
 }
 
 export async function sendBookingStatusUpdateEmail(params: {
-  to: string;
+  to: string | string[];
+  bcc?: string[];
   title: string;
   status: "APPROVED" | "CANCELLED";
 }) {
-  const { to, title, status } = params;
+  const { to, bcc, title, status } = params;
 
   const subjectPrefix = status === "APPROVED" ? "Aprovado" : "Cancelado";
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     to,
+    bcc,
     subject: `Agendamento ${subjectPrefix}: ${title}`,
     react: BookingStatusUpdateEmail({ title, status }),
     from: env.RESEND_FROM_EMAIL,
   });
+  if (result.error) {
+    console.error("[Resend] envio rejeitado:", result.error);
+    throw new Error(
+      `Resend rejeitou: ${result.error.name} — ${result.error.message}`
+    );
+  }
 }
