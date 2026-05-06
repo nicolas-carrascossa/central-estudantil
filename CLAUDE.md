@@ -98,7 +98,7 @@ Ver [prisma/schema.prisma](prisma/schema.prisma).
   - `id` (cuid), `title`, `date` (DateTime, dia do evento)
   - `startTime`, `endTime` — strings `HH:mm`
   - `spaceFirstOption`, `spaceSecondOption` — slugs do espaço (1ª e 2ª escolha do usuário)
-  - `externalGuests` — Json: `[{ name: string, cpf: string }]`
+  - `externalGuests` — Json: `[{ name: string, cpf: string, email?: string }]` (email opcional, usado no broadcast de aprovação)
   - `clubEmail`, `representativeEmail`
   - `status` — enum `BookingStatus` (`PENDING | APPROVED | CANCELLED`), default `PENDING`
   - `createdById` → User (cascade delete), `createdAt`, `updatedAt`
@@ -106,7 +106,7 @@ Ver [prisma/schema.prisma](prisma/schema.prisma).
 - **`GlobalGuestEmail`** (Sessão 2):
   - `id` (cuid), `email` (unique), `createdAt`
   - Lista global de emails que **sempre receberão convite** em eventos aprovados.
-  - Gerenciada pelo admin em `/z_admin` na tab "Convidados globais". CRUD pronto, **não integrada** ao fluxo de e-mail / Google Calendar ainda — uso real fica pra Sessão 3.
+  - Gerenciada pelo admin em `/z_admin` na tab "Convidados globais". Consumida em `adminUpdateBookingStatus` ([server/booking-admin.ts](server/booking-admin.ts)) no broadcast de aprovação (Sessão 3). Integração com Google Calendar fica pra Sessão 4.
 - Banco gerenciado por **Prisma Migrate** (não usar `db push`). Toda mudança de schema via `npx prisma migrate dev --name <descricao>` seguido de `npx prisma generate` (Prisma 7 não roda generate automaticamente).
 
 ---
@@ -155,7 +155,8 @@ Importar de lá em qualquer fluxo que precise de slug ou label. Não duplicar a 
 - Mobile mostra **só visão semanal** (em coluna), desktop mostra mês completo. Comportamento responsivo via `md:` breakpoint.
 - O calendário admin tem layout idêntico ao do usuário com modal extra de ações — manter consistência.
 - `BETTER_AUTH_URL` opcional: se setado, é adicionado a `trustedOrigins`. `localhost:3000` e `127.0.0.1:3000` já estão por default.
-- E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail`. O modelo `GlobalGuestEmail` já existe (Sessão 2) com CRUD em `/z_admin`, mas o fluxo de e-mail/Google Calendar ainda **não consome** essa lista — integração fica pra Sessão 3.
+- E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail`. O `BookingStatusUpdateEmail` (Sessão 3) já consome `GlobalGuestEmail` no broadcast de aprovação. **Template não menciona Google Calendar por enquanto** — revisar quando Sessão 4 plugar GCal em cima do mesmo ponto de envio.
+- **`resend.emails.send` NÃO faz throw em erro** — retorna `{ data, error }` (union discriminada). Sempre checar `result.error` e fazer `throw` manualmente, senão falhas (sandbox, rate limit, API key revogada, validation) passam em silêncio: zero log, status 200 na server action, request não aparece no Resend dashboard. Padrão atual em [lib/email.ts](lib/email.ts) (descoberto na Sessão 3 após validação manual).
 - **Páginas que são client components** (ex: [app/(admin)/z_admin/page.tsx](app/(admin)/z_admin/page.tsx), que usa `useState` pra tabs) **não atualizam UI via `revalidatePath` puro** — o componente client não é re-renderizado pelo servidor após mutação. Padrão atual em server actions de admin: chamar `revalidatePath("/z_admin")` normalmente (útil pra cache de RSC em outras navegações), e no client fazer **refetch após create + update otimista após delete**. Aplicado em [server/global-guest-email.ts](server/global-guest-email.ts) + [global-guest-list.tsx](app/(admin)/z_admin/_components/global-guest-list.tsx).
 
 ---
@@ -165,7 +166,7 @@ Importar de lá em qualquer fluxo que precise de slug ou label. Não duplicar a 
 1. **✅ RESOLVIDO (Fase 1+2): `SPACE_OPTIONS` duplicado e divergente entre user e admin** — lista canônica em [lib/constants/spaces.ts](lib/constants/spaces.ts) com `SPACE_OPTIONS` + `getSpaceLabel()`, importada em [calendar.tsx](app/(protected)/dashboard/_components/calendar.tsx) e [booking-details-modal.tsx](components/booking-details-modal.tsx). Sem strings hardcoded sobrando.
 2. **Sem detecção de conflito** — o mesmo espaço pode ser aprovado em horários sobrepostos no mesmo dia.
 3. **✅ RESOLVIDO (Fase 1+2): Aprovação não registrava qual espaço ficou** — `Booking.approvedSpace` existe em [prisma/schema.prisma](prisma/schema.prisma); [server/booking-admin.ts](server/booking-admin.ts) valida que `approvedSpace` deve ser `spaceFirstOption` ou `spaceSecondOption` antes de aprovar; [components/booking-details-modal.tsx](components/booking-details-modal.tsx) renderiza Select com 1ª/2ª opção pro admin escolher.
-4. **Email implementado parcialmente** — E-mail (Resend) usa `SECRETARIA_EMAIL` como destinatário único do `NewBookingRequestEmail`. O modelo `GlobalGuestEmail` já existe (Sessão 2) com CRUD em `/z_admin`, mas o fluxo de e-mail/Google Calendar ainda **não consome** essa lista — integração fica pra Sessão 3.
+4. **✅ RESOLVIDO PARCIALMENTE (Sessão 3): Email de status faz broadcast** — `sendBookingStatusUpdateEmail` ([lib/email.ts](lib/email.ts)) aceita `to: string | string[]` e `bcc?: string[]`; `adminUpdateBookingStatus` ([server/booking-admin.ts](server/booking-admin.ts)) monta destinatários ao aprovar: `to` com clube + representante, `bcc` com lista global + convidados externos com email (deduplicado, case-insensitive). Cancelamento envia só pra clube + representante. Validação manual confirmou montagem correta de destinatários via log `[debug]`; envio efetivo bloqueado pelo sandbox Resend até verificação de domínio. Integração com Google Calendar segue pendente, vai pra Sessão 4.
 5. **Sem editar booking** — usuário só cria, muda status ou deleta.
 6. **Sem reset de senha** / esqueci minha senha.
 7. **`adminListUsers` sem paginação/busca** (limite 100 fixo).
