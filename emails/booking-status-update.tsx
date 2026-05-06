@@ -54,9 +54,8 @@ export default function BookingStatusUpdateEmail({
 
             {isApproved ? (
               <Text className="text-sm text-gray-700">
-                Sua solicitação foi aprovada com sucesso. O evento já foi
-                adicionado ao calendário oficial. Compareça no dia e horário
-                agendados.
+                Sua solicitação foi aprovada. Confira os detalhes do evento
+                abaixo.
               </Text>
             ) : (
               <Text className="text-sm text-gray-700">
